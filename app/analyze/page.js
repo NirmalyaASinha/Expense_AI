@@ -76,16 +76,6 @@ export default function Analyze() {
 
   return (
     <div>
-      <nav className="navbar">
-        <div className="container navbar-inner">
-          <span className="navbar-logo">● ExpenseAI</span>
-          <div className="navbar-links">
-            <a href="/">Home</a>
-            <a href="/analyze" className="active">Analyze</a>
-            <a href="/history">History</a>
-          </div>
-        </div>
-      </nav>
       <div className="container page" style={{ maxWidth: "720px" }}>
         <div style={{ marginBottom: "32px" }}>
           <div style={{ fontSize: "12px", color: "#14b8a6", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>New Analysis</div>

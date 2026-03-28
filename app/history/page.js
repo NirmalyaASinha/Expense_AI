@@ -20,16 +20,6 @@ export default function History() {
 
   return (
     <div>
-      <nav className="navbar">
-        <div className="container navbar-inner">
-          <span className="navbar-logo">● ExpenseAI</span>
-          <div className="navbar-links">
-            <a href="/">Home</a>
-            <a href="/analyze">Analyze</a>
-            <a href="/history" className="active">History</a>
-          </div>
-        </div>
-      </nav>
       <div className="container page" style={{ maxWidth: "720px" }}>
         <div style={{ marginBottom: "28px" }}>
           <h1 style={{ fontSize: "22px", fontWeight: 600, color: "#f1f5f9" }}>Your Sessions</h1>

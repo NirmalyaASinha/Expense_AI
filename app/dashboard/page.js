@@ -1,4 +1,5 @@
-"use client"
+"use client"; // <-- This MUST be the very first line!
+
 import { useEffect, useState, useRef, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 
@@ -96,14 +97,18 @@ function Dashboard() {
 
   async function handleAnalyze() {
     setAnalyzeError("")
-    if (!newSession.trim()) { setAnalyzeError("Please enter a session name"); return }
+    if (!newSession.trim() && !session) { setAnalyzeError("Please enter a session name"); return }
     if (!newText.trim()) { setAnalyzeError("Please enter expenses"); return }
     setAnalyzing(true)
+    
+    // Use existing session if newSession is left blank but we are already viewing a session
+    const targetSession = newSession.trim() || session;
+
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: newText, sessionLabel: newSession })
+        body: JSON.stringify({ text: newText, sessionLabel: targetSession })
       })
       const data = await res.json()
       if (!data.success) throw new Error(data.error || "Failed")
@@ -111,7 +116,7 @@ function Dashboard() {
       setNewSession("")
       setNewText("")
       setTimeout(() => {
-        window.location.href = "/dashboard?session=" + encodeURIComponent(newSession)
+        window.location.href = "/dashboard?session=" + encodeURIComponent(targetSession)
       }, 300)
     } catch (err) {
       setAnalyzeError(err.message)
@@ -122,24 +127,6 @@ function Dashboard() {
 
   return (
     <div>
-      <nav className="navbar">
-        <div className="container navbar-inner">
-          <span className="navbar-logo">● ExpenseAI</span>
-          <div className="navbar-links">
-            <a href="/">Home</a>
-            <a href="/analyze">Analyze</a>
-            <a href="/history">History</a>
-            <button
-              className="btn btn-primary"
-              style={{ padding: "7px 18px", fontSize: "13px" }}
-              onClick={() => setShowAnalyze(v => !v)}
-            >
-              {showAnalyze ? "Close" : "+ New"}
-            </button>
-          </div>
-        </div>
-      </nav>
-
       <div className="container page" style={showAnalyze ? { display: "grid", gridTemplateColumns: "2fr 1fr", gap: 32 } : {}}>
         <div>
 
@@ -154,6 +141,13 @@ function Dashboard() {
                 <span style={{ display: "inline-flex", alignItems: "center", fontSize: 13, borderRadius: 99, border: "1.5px solid #ef4444", background: "rgba(239,68,68,0.08)", color: "#ef4444", padding: "2px 12px", fontWeight: 600 }}>
                   ⚠ {unusual.length} unusual
                 </span>
+                <button
+                  className="btn btn-primary"
+                  style={{ padding: "7px 18px", fontSize: "13px", marginLeft: 16 }}
+                  onClick={() => setShowAnalyze(v => !v)}
+                >
+                  {showAnalyze ? "Close" : "+ New"}
+                </button>
               </div>
             </div>
 
@@ -536,10 +530,56 @@ function Dashboard() {
               placeholder="Paste expenses here..."
               style={{ minHeight: 140, marginBottom: 12 }}
             />
-            {analyzeError && (newSession.length === 0 && !session ?
+            <div style={{ position: "relative", marginBottom: 12 }}>
+              <input
+                id="file-upload"
+                type="file"
+                accept=".txt,.csv,.tsv,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                style={{ display: "none" }}
+                onChange={e => {
+                  const file = e.target.files && e.target.files[0]
+                  if (file) {
+                    const reader = new FileReader()
+                    reader.onload = ev => {
+                      setNewText(ev.target.result)
+                    }
+                    reader.readAsText(file)
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => document.getElementById("file-upload").click()}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  background: "#1a1a1a",
+                  border: "1.5px solid #14b8a6",
+                  color: "#14b8a6",
+                  borderRadius: 8,
+                  padding: "8px 16px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  marginBottom: 0,
+                  width: "100%"
+                }}
+              >
+                <svg width="20" height="20" fill="none" viewBox="0 0 20 20" style={{ marginRight: 6 }}>
+                  <path d="M4 13v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3" stroke="#14b8a6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M7 10l3 3 3-3" stroke="#14b8a6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M10 3v10" stroke="#14b8a6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Upload File
+              </button>
+            </div>
+            
+            {/* The error message will now correctly show here if there is one */}
+            {analyzeError && (
               <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 10 }}>{analyzeError}</div>
-              : null
             )}
+            
             <button
               onClick={handleAnalyze}
               disabled={analyzing}
@@ -562,6 +602,7 @@ function Dashboard() {
 }
 
 export default function DashboardPage() {
+  // Your Suspense boundary here is completely correct!
   return (
     <Suspense fallback={<div className="loading">Loading...</div>}>
       <Dashboard />

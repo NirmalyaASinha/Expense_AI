@@ -1,3 +1,5 @@
+
+import { auth } from "@/auth";
 import { ensureExpensesTable, query } from "../../../lib/db"
 
 function isDbConnectivityError(err) {
@@ -83,23 +85,25 @@ function parseAiExpenses(cfData) {
 
 export async function POST(request) {
   try {
-    const body = await request.json()
-    const { text, sessionLabel } = body
+    const session = await auth();
+    const userId = session?.user?.id || "anonymous";
+    const body = await request.json();
+    const { text, sessionLabel } = body;
 
     if (!text || !sessionLabel) {
-      return Response.json({ error: "Missing text or sessionLabel" }, { status: 400 })
+      return Response.json({ error: "Missing text or sessionLabel" }, { status: 400 });
     }
 
-    await ensureExpensesTable()
+    await ensureExpensesTable();
 
-    let expenses = []
-    let aiWarning = ""
+    let expenses = [];
+    let aiWarning = "";
 
     try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      let cfResponse
+      let cfResponse;
       try {
         cfResponse = await fetch(
           `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/meta/llama-3.3-70b-instruct-fp8-fast`,
@@ -131,44 +135,44 @@ If month and year are not provided assume current month and year.`
             }),
             signal: controller.signal,
           }
-        )
+        );
       } finally {
-        clearTimeout(timeoutId)
+        clearTimeout(timeoutId);
       }
 
-      const cfData = await cfResponse.json().catch(() => ({}))
+      const cfData = await cfResponse.json().catch(() => ({}));
       if (!cfResponse.ok || !cfData.success) {
-        const apiMsg = cfData?.errors?.[0]?.message || cfData?.result?.error || `HTTP ${cfResponse.status}`
-        throw new Error(`Cloudflare AI failed: ${apiMsg}`)
+        const apiMsg = cfData?.errors?.[0]?.message || cfData?.result?.error || `HTTP ${cfResponse.status}`;
+        throw new Error(`Cloudflare AI failed: ${apiMsg}`);
       }
 
-      expenses = parseAiExpenses(cfData)
+      expenses = parseAiExpenses(cfData);
     } catch (aiErr) {
-      expenses = parseFallbackExpenses(text)
+      expenses = parseFallbackExpenses(text);
       if (expenses.length === 0) {
-        throw new Error(aiErr?.message || "Cloudflare AI failed and no parseable expenses were found")
+        throw new Error(aiErr?.message || "Cloudflare AI failed and no parseable expenses were found");
       }
-      aiWarning = "Cloudflare AI unavailable. Used local parser fallback."
+      aiWarning = "Cloudflare AI unavailable. Used local parser fallback.";
     }
 
-    if (!Array.isArray(expenses)) throw new Error("AI did not return an array")
+    if (!Array.isArray(expenses)) throw new Error("AI did not return an array");
 
-    let persisted = true
+    let persisted = true;
     try {
-      await query("DELETE FROM expenses WHERE session_label = $1", [sessionLabel])
+      await query("DELETE FROM expenses WHERE session_label = $1 AND user_id = $2", [sessionLabel, userId]);
 
       for (const exp of expenses) {
         await query(
-          `INSERT INTO expenses (session_label, category, vendor, amount, month, year, is_unusual, suggestion)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [sessionLabel, exp.category, exp.vendor, exp.amount, exp.month, exp.year, exp.is_unusual, exp.suggestion]
-        )
+          `INSERT INTO expenses (session_label, category, vendor, amount, month, year, is_unusual, suggestion, user_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [sessionLabel, exp.category, exp.vendor, exp.amount, exp.month, exp.year, exp.is_unusual, exp.suggestion, userId]
+        );
       }
     } catch (dbErr) {
       if (isDbConnectivityError(dbErr)) {
-        persisted = false
+        persisted = false;
       } else {
-        throw dbErr
+        throw dbErr;
       }
     }
 
@@ -181,7 +185,7 @@ If month and year are not provided assume current month and year.`
           ? `${aiWarning} Database unreachable. Results are returned but not saved to Neon.`
           : "Database unreachable. Results are returned but not saved to Neon.",
         expenses,
-      })
+      });
     }
 
     return Response.json({
@@ -189,10 +193,10 @@ If month and year are not provided assume current month and year.`
       count: expenses.length,
       persisted: true,
       warning: aiWarning || undefined,
-    })
+    });
 
   } catch (err) {
-    console.error("Analyze error:", err)
-    return Response.json({ error: err.message }, { status: 500 })
+    console.error("Analyze error:", err);
+    return Response.json({ error: err.message }, { status: 500 });
   }
 }
