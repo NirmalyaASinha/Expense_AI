@@ -525,7 +525,7 @@ function Dashboard() {
           <div className="card" style={{ marginTop: 80, alignSelf: "start", position: "sticky", top: 80 }}>
             <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 16 }}>Analyze New Session</div>
             <input
-              value={newSession}
+              value={newSession.length === 0 && session ? session : newSession}
               onChange={e => setNewSession(e.target.value)}
               placeholder='Session name e.g. "April 2026"'
               style={{ marginBottom: 12 }}
@@ -536,8 +536,9 @@ function Dashboard() {
               placeholder="Paste expenses here..."
               style={{ minHeight: 140, marginBottom: 12 }}
             />
-            {analyzeError && (
+            {analyzeError && (newSession.length === 0 && !session ?
               <div style={{ color: "#ef4444", fontSize: 13, marginBottom: 10 }}>{analyzeError}</div>
+              : null
             )}
             <button
               onClick={handleAnalyze}
