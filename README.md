@@ -1,6 +1,6 @@
 <div align="center">
 
-# 💸 ExpenseAI
+# ExpenseAI
 **Track. Detect. Optimize.**
 *An autonomous financial auditor powered by Edge AI.*
 
